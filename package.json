@@ -1,0 +1,22 @@
+{
+  "name": "openguardians-platform",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev": "npm run dev --workspace apps/web",
+    "dev:api": "npm run dev --workspace apps/api",
+    "build": "npm run build --workspaces",
+    "lint": "npm run lint --workspaces --if-present",
+    "typecheck": "npm run typecheck --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace apps/web",
+    "db:generate": "npm run db:generate --workspace packages/db",
+    "db:migrate": "npm run db:migrate --workspace packages/db"
+  },
+  "engines": {
+    "node": ">=20"
+  }
+}
