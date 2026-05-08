@@ -4,6 +4,10 @@ declare global {
       workspaceId?: string;
       actor?: {
         type: 'api-key';
+        name?: string;
+        role: 'admin' | 'operator' | 'viewer';
+        scopes: string[];
+        workspaces: string[];
       };
     }
   }
