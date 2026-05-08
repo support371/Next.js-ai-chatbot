@@ -1,3 +1,5 @@
+import { randomUUID } from 'node:crypto';
+
 export type WorkspaceAppMode = 'production' | 'marketing' | 'automation';
 
 export type WorkspaceAppSource = 'vercel' | 'external';
@@ -42,7 +44,7 @@ function createId(input: CreateWorkspaceAppInput) {
     .replace(/(^-|-$)/g, '')
     .slice(0, 48);
 
-  return `${input.workspaceId}:${input.mode}:${slug || crypto.randomUUID()}`;
+  return `${input.workspaceId}:${input.mode}:${slug || randomUUID()}`;
 }
 
 export function registerWorkspaceApp(input: CreateWorkspaceAppInput) {
