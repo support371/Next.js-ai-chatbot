@@ -21,6 +21,7 @@ Configure these variables in the API runtime environment:
 ```env
 OPENAI_API_KEY=
 OPENAI_MODEL=gpt-4o-mini
+OPENGUARDIANS_API_KEYS=replace_with_rotatable_api_key
 DATABASE_URL=postgresql://USER:PASSWORD@HOST:PORT/DATABASE?schema=public
 DEFAULT_WORKSPACE_ID=gem-workspace
 CORS_ORIGIN=https://your-control-plane-domain.com
@@ -50,12 +51,29 @@ Use the workspace app registry API to register any existing Vercel app:
 
 The control plane stores the app URL, optional Vercel project ID, optional deployment URL, health path, status, and workspace ownership metadata in PostgreSQL.
 
+## Authenticated import example
+
+```bash
+curl -X POST "$OPENGUARDIANS_API_URL/api/workspace/apps" \
+  -H "Authorization: Bearer $OPENGUARDIANS_API_KEY" \
+  -H "x-workspace-id: gem-workspace" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "name": "Admin Console",
+    "mode": "production",
+    "source": "vercel",
+    "url": "https://admin.example.com",
+    "healthPath": "/api/health",
+    "status": "active"
+  }'
+```
+
 ## Operating model
 
 1. Deploy each completed app to Vercel as its own project.
 2. Confirm its production domain and health endpoint.
 3. Run database migrations for the control-plane API.
-4. Register the app through `/api/workspace/apps` or `/api/workspace/apps/bulk`.
+4. Register the app through `/api/workspace/apps` or `/api/workspace/apps/bulk` with an API key and workspace context.
 5. Use `/launch` to serve users into the right app.
 6. Use `/health` to probe service availability.
 7. Use the dashboard to display service mode and app ownership.
