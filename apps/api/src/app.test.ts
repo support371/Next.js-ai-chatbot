@@ -55,4 +55,24 @@ describe('API middleware', () => {
     expect(response.status).toBe(400);
     expect(response.body.error).toBe('WORKSPACE_ID_REQUIRED');
   });
+
+  it('rejects mismatched body workspace context before registry writes', async () => {
+    process.env.OPENGUARDIANS_API_KEY = 'test-key';
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/workspace/apps')
+      .set('authorization', 'Bearer test-key')
+      .set('x-workspace-id', 'workspace-a')
+      .send({
+        workspaceId: 'workspace-b',
+        name: 'Admin Console',
+        mode: 'production',
+        source: 'vercel',
+        url: 'https://admin.example.com'
+      });
+
+    expect(response.status).toBe(409);
+    expect(response.body.error).toBe('WORKSPACE_CONTEXT_MISMATCH');
+  });
 });
