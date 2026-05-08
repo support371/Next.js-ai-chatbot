@@ -30,9 +30,17 @@ const bulkImportSchema = z.object({
   apps: z.array(registerAppSchema.omit({ workspaceId: true })).min(1).max(50)
 });
 
+function getWorkspaceIdFromQuery(value: unknown) {
+  return String(value ?? process.env.DEFAULT_WORKSPACE_ID ?? 'default');
+}
+
+function buildHealthUrl(app: { url: string; healthPath: string | null }) {
+  return new URL(app.healthPath ?? '/', app.url).toString();
+}
+
 workspaceAppsRouter.get('/', async (req, res, next) => {
   try {
-    const workspaceId = String(req.query.workspaceId ?? process.env.DEFAULT_WORKSPACE_ID ?? 'default');
+    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
     const modeResult = req.query.mode ? modeSchema.safeParse(req.query.mode) : undefined;
 
     if (modeResult && !modeResult.success) {
@@ -114,7 +122,7 @@ workspaceAppsRouter.post('/bulk', async (req, res, next) => {
 
 workspaceAppsRouter.get('/:appId', async (req, res, next) => {
   try {
-    const workspaceId = String(req.query.workspaceId ?? process.env.DEFAULT_WORKSPACE_ID ?? 'default');
+    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
     const app = await getWorkspaceApp(workspaceId, req.params.appId);
 
     if (!app) {
@@ -128,6 +136,84 @@ workspaceAppsRouter.get('/:appId', async (req, res, next) => {
       ok: true,
       app
     });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+workspaceAppsRouter.get('/:appId/launch', async (req, res, next) => {
+  try {
+    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
+    const redirect = req.query.redirect !== 'false';
+    const app = await getWorkspaceApp(workspaceId, req.params.appId);
+
+    if (!app) {
+      return res.status(404).json({
+        ok: false,
+        error: 'WORKSPACE_APP_NOT_FOUND'
+      });
+    }
+
+    if (app.status !== 'active') {
+      return res.status(409).json({
+        ok: false,
+        error: 'WORKSPACE_APP_NOT_ACTIVE',
+        status: app.status
+      });
+    }
+
+    if (redirect) {
+      return res.redirect(302, app.url);
+    }
+
+    return res.status(200).json({
+      ok: true,
+      launchUrl: app.url,
+      app
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+workspaceAppsRouter.get('/:appId/health', async (req, res, next) => {
+  try {
+    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
+    const app = await getWorkspaceApp(workspaceId, req.params.appId);
+
+    if (!app) {
+      return res.status(404).json({
+        ok: false,
+        error: 'WORKSPACE_APP_NOT_FOUND'
+      });
+    }
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), Number(process.env.APP_HEALTH_TIMEOUT_MS ?? 5000));
+    const startedAt = Date.now();
+    const targetUrl = buildHealthUrl(app);
+
+    try {
+      const response = await fetch(targetUrl, {
+        method: 'GET',
+        signal: controller.signal
+      });
+
+      const latencyMs = Date.now() - startedAt;
+
+      return res.status(200).json({
+        ok: response.ok,
+        appId: app.id,
+        workspaceId: app.workspaceId,
+        targetUrl,
+        status: response.status,
+        statusText: response.statusText,
+        latencyMs,
+        checkedAt: new Date().toISOString()
+      });
+    } finally {
+      clearTimeout(timeout);
+    }
   } catch (error) {
     return next(error);
   }
