@@ -1,26 +1,10 @@
-import { randomUUID } from 'node:crypto';
+import { prisma } from '@openguardians/db';
 
 export type WorkspaceAppMode = 'production' | 'marketing' | 'automation';
 
 export type WorkspaceAppSource = 'vercel' | 'external';
 
 export type WorkspaceAppStatus = 'active' | 'draft' | 'disabled';
-
-export interface WorkspaceApp {
-  id: string;
-  workspaceId: string;
-  name: string;
-  mode: WorkspaceAppMode;
-  source: WorkspaceAppSource;
-  url: string;
-  vercelProjectId?: string;
-  vercelDeploymentUrl?: string;
-  healthPath?: string;
-  description?: string;
-  status: WorkspaceAppStatus;
-  createdAt: string;
-  updatedAt: string;
-}
 
 export interface CreateWorkspaceAppInput {
   workspaceId: string;
@@ -35,8 +19,6 @@ export interface CreateWorkspaceAppInput {
   status?: WorkspaceAppStatus;
 }
 
-const apps = new Map<string, WorkspaceApp>();
-
 function createId(input: CreateWorkspaceAppInput) {
   const slug = input.name
     .toLowerCase()
@@ -44,49 +26,61 @@ function createId(input: CreateWorkspaceAppInput) {
     .replace(/(^-|-$)/g, '')
     .slice(0, 48);
 
-  return `${input.workspaceId}:${input.mode}:${slug || randomUUID()}`;
+  return `${input.workspaceId}:${input.mode}:${slug}`;
 }
 
-export function registerWorkspaceApp(input: CreateWorkspaceAppInput) {
-  const now = new Date().toISOString();
-  const id = createId(input);
-  const existing = apps.get(id);
-
-  const app: WorkspaceApp = {
-    ...existing,
-    id,
-    workspaceId: input.workspaceId,
-    name: input.name,
-    mode: input.mode,
-    source: input.source,
-    url: input.url,
-    vercelProjectId: input.vercelProjectId,
-    vercelDeploymentUrl: input.vercelDeploymentUrl,
-    healthPath: input.healthPath,
-    description: input.description,
-    status: input.status ?? existing?.status ?? 'active',
-    createdAt: existing?.createdAt ?? now,
-    updatedAt: now
-  };
-
-  apps.set(id, app);
-  return app;
-}
-
-export function listWorkspaceApps(workspaceId: string, mode?: WorkspaceAppMode) {
-  return [...apps.values()].filter((app) => {
-    if (app.workspaceId !== workspaceId) return false;
-    if (mode && app.mode !== mode) return false;
-    return true;
+export async function registerWorkspaceApp(input: CreateWorkspaceAppInput) {
+  return prisma.workspaceApp.upsert({
+    where: {
+      workspaceId_mode_name: {
+        workspaceId: input.workspaceId,
+        mode: input.mode,
+        name: input.name
+      }
+    },
+    create: {
+      id: createId(input),
+      workspaceId: input.workspaceId,
+      name: input.name,
+      mode: input.mode,
+      source: input.source,
+      url: input.url,
+      vercelProjectId: input.vercelProjectId,
+      vercelDeploymentUrl: input.vercelDeploymentUrl,
+      healthPath: input.healthPath,
+      description: input.description,
+      status: input.status ?? 'active'
+    },
+    update: {
+      source: input.source,
+      url: input.url,
+      vercelProjectId: input.vercelProjectId,
+      vercelDeploymentUrl: input.vercelDeploymentUrl,
+      healthPath: input.healthPath,
+      description: input.description,
+      status: input.status ?? 'active'
+    }
   });
 }
 
-export function getWorkspaceApp(workspaceId: string, appId: string) {
-  const app = apps.get(appId);
+export async function listWorkspaceApps(workspaceId: string, mode?: WorkspaceAppMode) {
+  return prisma.workspaceApp.findMany({
+    where: {
+      workspaceId,
+      ...(mode ? { mode } : {})
+    },
+    orderBy: [
+      { mode: 'asc' },
+      { name: 'asc' }
+    ]
+  });
+}
 
-  if (!app || app.workspaceId !== workspaceId) {
-    return undefined;
-  }
-
-  return app;
+export async function getWorkspaceApp(workspaceId: string, appId: string) {
+  return prisma.workspaceApp.findFirst({
+    where: {
+      workspaceId,
+      id: appId
+    }
+  });
 }
