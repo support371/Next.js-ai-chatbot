@@ -13,7 +13,7 @@ export const workspaceAppsRouter = Router();
 const modeSchema = z.enum(['production', 'marketing', 'automation']);
 
 const registerAppSchema = z.object({
-  workspaceId: z.string().trim().min(1).default(process.env.DEFAULT_WORKSPACE_ID ?? 'default'),
+  workspaceId: z.string().trim().min(1).optional(),
   name: z.string().trim().min(1).max(120),
   mode: modeSchema,
   source: z.enum(['vercel', 'external']).default('vercel'),
@@ -26,12 +26,24 @@ const registerAppSchema = z.object({
 });
 
 const bulkImportSchema = z.object({
-  workspaceId: z.string().trim().min(1).default(process.env.DEFAULT_WORKSPACE_ID ?? 'default'),
+  workspaceId: z.string().trim().min(1).optional(),
   apps: z.array(registerAppSchema.omit({ workspaceId: true })).min(1).max(50)
 });
 
-function getWorkspaceIdFromQuery(value: unknown) {
-  return String(value ?? process.env.DEFAULT_WORKSPACE_ID ?? 'default');
+function requireRouteWorkspaceId(req: Express.Request) {
+  if (!req.workspaceId) {
+    throw new Error('Workspace context was not initialized.');
+  }
+
+  return req.workspaceId;
+}
+
+function ensureBodyWorkspaceMatchesContext(bodyWorkspaceId: string | undefined, contextWorkspaceId: string) {
+  if (bodyWorkspaceId && bodyWorkspaceId !== contextWorkspaceId) {
+    return false;
+  }
+
+  return true;
 }
 
 function buildHealthUrl(app: { url: string; healthPath: string | null }) {
@@ -40,7 +52,7 @@ function buildHealthUrl(app: { url: string; healthPath: string | null }) {
 
 workspaceAppsRouter.get('/', async (req, res, next) => {
   try {
-    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
+    const workspaceId = requireRouteWorkspaceId(req);
     const modeResult = req.query.mode ? modeSchema.safeParse(req.query.mode) : undefined;
 
     if (modeResult && !modeResult.success) {
@@ -67,6 +79,7 @@ workspaceAppsRouter.get('/', async (req, res, next) => {
 
 workspaceAppsRouter.post('/', async (req, res, next) => {
   try {
+    const workspaceId = requireRouteWorkspaceId(req);
     const parsed = registerAppSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -77,7 +90,17 @@ workspaceAppsRouter.post('/', async (req, res, next) => {
       });
     }
 
-    const app = await registerWorkspaceApp(parsed.data);
+    if (!ensureBodyWorkspaceMatchesContext(parsed.data.workspaceId, workspaceId)) {
+      return res.status(409).json({
+        ok: false,
+        error: 'WORKSPACE_CONTEXT_MISMATCH'
+      });
+    }
+
+    const app = await registerWorkspaceApp({
+      ...parsed.data,
+      workspaceId
+    });
 
     return res.status(201).json({
       ok: true,
@@ -90,6 +113,7 @@ workspaceAppsRouter.post('/', async (req, res, next) => {
 
 workspaceAppsRouter.post('/bulk', async (req, res, next) => {
   try {
+    const workspaceId = requireRouteWorkspaceId(req);
     const parsed = bulkImportSchema.safeParse(req.body);
 
     if (!parsed.success) {
@@ -100,18 +124,25 @@ workspaceAppsRouter.post('/bulk', async (req, res, next) => {
       });
     }
 
+    if (!ensureBodyWorkspaceMatchesContext(parsed.data.workspaceId, workspaceId)) {
+      return res.status(409).json({
+        ok: false,
+        error: 'WORKSPACE_CONTEXT_MISMATCH'
+      });
+    }
+
     const importedApps = await Promise.all(
       parsed.data.apps.map((app) =>
         registerWorkspaceApp({
           ...app,
-          workspaceId: parsed.data.workspaceId
+          workspaceId
         })
       )
     );
 
     return res.status(201).json({
       ok: true,
-      workspaceId: parsed.data.workspaceId,
+      workspaceId,
       count: importedApps.length,
       apps: importedApps
     });
@@ -122,7 +153,7 @@ workspaceAppsRouter.post('/bulk', async (req, res, next) => {
 
 workspaceAppsRouter.get('/:appId', async (req, res, next) => {
   try {
-    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
+    const workspaceId = requireRouteWorkspaceId(req);
     const app = await getWorkspaceApp(workspaceId, req.params.appId);
 
     if (!app) {
@@ -143,7 +174,7 @@ workspaceAppsRouter.get('/:appId', async (req, res, next) => {
 
 workspaceAppsRouter.get('/:appId/launch', async (req, res, next) => {
   try {
-    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
+    const workspaceId = requireRouteWorkspaceId(req);
     const redirect = req.query.redirect !== 'false';
     const app = await getWorkspaceApp(workspaceId, req.params.appId);
 
@@ -178,7 +209,7 @@ workspaceAppsRouter.get('/:appId/launch', async (req, res, next) => {
 
 workspaceAppsRouter.get('/:appId/health', async (req, res, next) => {
   try {
-    const workspaceId = getWorkspaceIdFromQuery(req.query.workspaceId);
+    const workspaceId = requireRouteWorkspaceId(req);
     const app = await getWorkspaceApp(workspaceId, req.params.appId);
 
     if (!app) {
