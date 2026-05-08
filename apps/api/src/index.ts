@@ -8,6 +8,7 @@ import { healthRouter } from './routes/health.js';
 import { intelligenceRouter } from './routes/intelligence.js';
 import { socialAccountsRouter } from './routes/socialAccounts.js';
 import { socialPostsRouter } from './routes/socialPosts.js';
+import { workspaceAppsRouter } from './routes/workspaceApps.js';
 
 const app = express();
 
@@ -35,6 +36,7 @@ app.use('/api/health', healthRouter);
 app.use('/api/intelligence', intelligenceRouter);
 app.use('/api/social/accounts', socialAccountsRouter);
 app.use('/api/social/posts', socialPostsRouter);
+app.use('/api/workspace/apps', workspaceAppsRouter);
 
 app.use((error: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   console.error(error);
