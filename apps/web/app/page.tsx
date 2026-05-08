@@ -1,3 +1,5 @@
+import { listWorkspaceApps, type WorkspaceApp } from '../lib/controlPlane.js';
+
 const modes = [
   {
     name: 'Production mode',
@@ -14,7 +16,7 @@ const modes = [
     value: 'automation',
     description: 'Worker consoles, cron interfaces, orchestration panels, and automation hubs.'
   }
-];
+] as const;
 
 const samplePayload = `{
   "workspaceId": "gem-workspace",
@@ -45,7 +47,13 @@ const samplePayload = `{
   ]
 }`;
 
-export default function HomePage() {
+function getAppsForMode(apps: WorkspaceApp[], mode: WorkspaceApp['mode']) {
+  return apps.filter((app) => app.mode === mode);
+}
+
+export default async function HomePage() {
+  const registry = await listWorkspaceApps();
+
   return (
     <main style={{ fontFamily: 'system-ui, sans-serif', padding: '4rem', lineHeight: 1.5 }}>
       <p style={{ textTransform: 'uppercase', letterSpacing: '0.12em', fontSize: '0.8rem' }}>
@@ -57,14 +65,36 @@ export default function HomePage() {
         and expose them to the operating system through a single app registry API.
       </p>
 
-      <section style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', marginTop: '2rem' }}>
-        {modes.map((mode) => (
-          <article key={mode.value} style={{ border: '1px solid #ddd', borderRadius: '12px', padding: '1rem' }}>
-            <h2 style={{ marginTop: 0 }}>{mode.name}</h2>
-            <code>{mode.value}</code>
-            <p>{mode.description}</p>
-          </article>
-        ))}
+      <section style={{ border: '1px solid #ddd', borderRadius: '12px', padding: '1rem', marginTop: '2rem' }}>
+        <h2 style={{ marginTop: 0 }}>Workspace registry</h2>
+        <p>
+          Workspace: <code>{registry.workspaceId}</code>
+        </p>
+        {registry.error ? <p>{registry.error}</p> : <p>{registry.apps.length} app(s) registered.</p>}
+      </section>
+
+      <section style={{ display: 'grid', gap: '1rem', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', marginTop: '2rem' }}>
+        {modes.map((mode) => {
+          const apps = getAppsForMode(registry.apps, mode.value);
+
+          return (
+            <article key={mode.value} style={{ border: '1px solid #ddd', borderRadius: '12px', padding: '1rem' }}>
+              <h2 style={{ marginTop: 0 }}>{mode.name}</h2>
+              <code>{mode.value}</code>
+              <p>{mode.description}</p>
+              <p>{apps.length} registered</p>
+              {apps.length > 0 ? (
+                <ul style={{ paddingLeft: '1.2rem' }}>
+                  {apps.map((app) => (
+                    <li key={app.id}>
+                      <a href={app.url}>{app.name}</a> — {app.status}
+                    </li>
+                  ))}
+                </ul>
+              ) : null}
+            </article>
+          );
+        })}
       </section>
 
       <section style={{ marginTop: '2rem' }}>
