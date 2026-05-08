@@ -6,12 +6,14 @@ import {
   getWorkspaceApp,
   listWorkspaceApps,
   registerWorkspaceApp,
+  updateWorkspaceApp,
   type WorkspaceAppMode
 } from '../services/appRegistry.js';
 
 export const workspaceAppsRouter = Router();
 
 const modeSchema = z.enum(['production', 'marketing', 'automation']);
+const statusSchema = z.enum(['active', 'draft', 'disabled']);
 
 const registerAppSchema = z.object({
   workspaceId: z.string().trim().min(1).optional(),
@@ -23,7 +25,16 @@ const registerAppSchema = z.object({
   vercelDeploymentUrl: z.string().trim().url().optional(),
   healthPath: z.string().trim().startsWith('/').optional(),
   description: z.string().trim().max(500).optional(),
-  status: z.enum(['active', 'draft', 'disabled']).default('active')
+  status: statusSchema.default('active')
+});
+
+const updateAppSchema = z.object({
+  url: z.string().trim().url().optional(),
+  vercelProjectId: z.string().trim().min(1).nullable().optional(),
+  vercelDeploymentUrl: z.string().trim().url().nullable().optional(),
+  healthPath: z.string().trim().startsWith('/').nullable().optional(),
+  description: z.string().trim().max(500).nullable().optional(),
+  status: statusSchema.optional()
 });
 
 const bulkImportSchema = z.object({
@@ -156,6 +167,37 @@ workspaceAppsRouter.get('/:appId', requireScope('apps:read'), async (req, res, n
   try {
     const workspaceId = requireRouteWorkspaceId(req);
     const app = await getWorkspaceApp(workspaceId, req.params.appId);
+
+    if (!app) {
+      return res.status(404).json({
+        ok: false,
+        error: 'WORKSPACE_APP_NOT_FOUND'
+      });
+    }
+
+    return res.status(200).json({
+      ok: true,
+      app
+    });
+  } catch (error) {
+    return next(error);
+  }
+});
+
+workspaceAppsRouter.patch('/:appId', requireScope('apps:write'), async (req, res, next) => {
+  try {
+    const workspaceId = requireRouteWorkspaceId(req);
+    const parsed = updateAppSchema.safeParse(req.body);
+
+    if (!parsed.success) {
+      return res.status(400).json({
+        ok: false,
+        error: 'INVALID_WORKSPACE_APP_UPDATE',
+        issues: parsed.error.flatten()
+      });
+    }
+
+    const app = await updateWorkspaceApp(workspaceId, req.params.appId, parsed.data);
 
     if (!app) {
       return res.status(404).json({
