@@ -19,6 +19,15 @@ export interface CreateWorkspaceAppInput {
   status?: WorkspaceAppStatus;
 }
 
+export interface UpdateWorkspaceAppInput {
+  url?: string;
+  vercelProjectId?: string | null;
+  vercelDeploymentUrl?: string | null;
+  healthPath?: string | null;
+  description?: string | null;
+  status?: WorkspaceAppStatus;
+}
+
 function createId(input: CreateWorkspaceAppInput) {
   const slug = input.name
     .toLowerCase()
@@ -60,6 +69,21 @@ export async function registerWorkspaceApp(input: CreateWorkspaceAppInput) {
       description: input.description,
       status: input.status ?? 'active'
     }
+  });
+}
+
+export async function updateWorkspaceApp(workspaceId: string, appId: string, input: UpdateWorkspaceAppInput) {
+  const existing = await getWorkspaceApp(workspaceId, appId);
+
+  if (!existing) {
+    return undefined;
+  }
+
+  return prisma.workspaceApp.update({
+    where: {
+      id: appId
+    },
+    data: input
   });
 }
 
