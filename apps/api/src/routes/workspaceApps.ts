@@ -1,4 +1,4 @@
-import { Router } from 'express';
+import { Router, type Request } from 'express';
 import { z } from 'zod';
 
 import {
@@ -30,7 +30,7 @@ const bulkImportSchema = z.object({
   apps: z.array(registerAppSchema.omit({ workspaceId: true })).min(1).max(50)
 });
 
-function requireRouteWorkspaceId(req: Express.Request) {
+function requireRouteWorkspaceId(req: Request) {
   if (!req.workspaceId) {
     throw new Error('Workspace context was not initialized.');
   }
