@@ -3,6 +3,8 @@ import { z } from 'zod';
 
 import { gemAIIntelligence } from '@openguardians/ai';
 
+import { requireScope } from '../middleware/accessControl.js';
+
 export const intelligenceRouter = Router();
 
 const intelligenceRequestSchema = z.object({
@@ -10,7 +12,7 @@ const intelligenceRequestSchema = z.object({
   prompt: z.string().trim().min(1).max(12000)
 });
 
-intelligenceRouter.post('/', async (req, res, next) => {
+intelligenceRouter.post('/', requireScope('ai:invoke'), async (req, res, next) => {
   try {
     const parsed = intelligenceRequestSchema.safeParse(req.body);
 
