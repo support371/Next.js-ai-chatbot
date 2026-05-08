@@ -78,6 +78,28 @@ curl "$OPENGUARDIANS_API_URL/api/workspace/apps?workspaceId=gem-workspace&mode=m
 curl "$OPENGUARDIANS_API_URL/api/workspace/apps?workspaceId=gem-workspace&mode=automation"
 ```
 
+## Launch an app
+
+Return the launch URL as JSON:
+
+```bash
+curl "$OPENGUARDIANS_API_URL/api/workspace/apps/gem-workspace:production:admin-console/launch?workspaceId=gem-workspace&redirect=false"
+```
+
+Redirect directly to the app:
+
+```bash
+curl -L "$OPENGUARDIANS_API_URL/api/workspace/apps/gem-workspace:production:admin-console/launch?workspaceId=gem-workspace"
+```
+
+## Health-check an app
+
+```bash
+curl "$OPENGUARDIANS_API_URL/api/workspace/apps/gem-workspace:production:admin-console/health?workspaceId=gem-workspace"
+```
+
+If `healthPath` is set, the registry checks that path. Otherwise, it checks the app root URL.
+
 ## Production handoff requirements
 
 Before an imported app is marked `active`, confirm:
@@ -88,6 +110,6 @@ Before an imported app is marked `active`, confirm:
 4. Ownership, repository, and deployment source are known.
 5. Secrets remain in Vercel or a vault, not in GitHub.
 
-## Persistence note
+## Persistence
 
-The first implementation uses an in-memory registry to unblock API/UI integration. Replace `apps/api/src/services/appRegistry.ts` with Prisma-backed persistence before production rollout.
+The registry is backed by Prisma/PostgreSQL through `packages/db` and `apps/api/src/services/appRegistry.ts`. Configure `DATABASE_URL`, run migrations, and use the same API payloads for local, staging, and production environments.
