@@ -6,6 +6,7 @@ import { createApp } from './app.js';
 afterEach(() => {
   delete process.env.OPENGUARDIANS_API_KEY;
   delete process.env.OPENGUARDIANS_API_KEYS;
+  delete process.env.OPENGUARDIANS_API_KEY_CONFIG_JSON;
   delete process.env.DEFAULT_WORKSPACE_ID;
 });
 
@@ -74,5 +75,54 @@ describe('API middleware', () => {
 
     expect(response.status).toBe(409);
     expect(response.body.error).toBe('WORKSPACE_CONTEXT_MISMATCH');
+  });
+
+  it('rejects API keys outside their workspace allowlist', async () => {
+    process.env.OPENGUARDIANS_API_KEY_CONFIG_JSON = JSON.stringify([
+      {
+        name: 'marketing-viewer',
+        key: 'scoped-key',
+        role: 'viewer',
+        scopes: ['apps:read'],
+        workspaces: ['workspace-a']
+      }
+    ]);
+    const app = createApp();
+
+    const response = await request(app)
+      .get('/api/workspace/apps')
+      .set('authorization', 'Bearer scoped-key')
+      .set('x-workspace-id', 'workspace-b');
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('WORKSPACE_ACCESS_DENIED');
+  });
+
+  it('rejects API keys without the required route scope', async () => {
+    process.env.OPENGUARDIANS_API_KEY_CONFIG_JSON = JSON.stringify([
+      {
+        name: 'read-only',
+        key: 'read-only-key',
+        role: 'viewer',
+        scopes: ['apps:read'],
+        workspaces: ['workspace-a']
+      }
+    ]);
+    const app = createApp();
+
+    const response = await request(app)
+      .post('/api/workspace/apps')
+      .set('authorization', 'Bearer read-only-key')
+      .set('x-workspace-id', 'workspace-a')
+      .send({
+        name: 'Admin Console',
+        mode: 'production',
+        source: 'vercel',
+        url: 'https://admin.example.com'
+      });
+
+    expect(response.status).toBe(403);
+    expect(response.body.error).toBe('INSUFFICIENT_SCOPE');
+    expect(response.body.requiredScope).toBe('apps:write');
   });
 });
