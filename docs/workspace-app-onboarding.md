@@ -15,8 +15,8 @@ OpenGuardians can register completed apps under a workspace and classify each ap
 ```bash
 curl -X POST "$OPENGUARDIANS_API_URL/api/workspace/apps" \
   -H "Content-Type: application/json" \
+  -H "x-workspace-id: gem-workspace" \
   -d '{
-    "workspaceId": "gem-workspace",
     "name": "Admin Console",
     "mode": "production",
     "source": "vercel",
@@ -34,8 +34,8 @@ curl -X POST "$OPENGUARDIANS_API_URL/api/workspace/apps" \
 ```bash
 curl -X POST "$OPENGUARDIANS_API_URL/api/workspace/apps/bulk" \
   -H "Content-Type: application/json" \
+  -H "x-workspace-id: gem-workspace" \
   -d '{
-    "workspaceId": "gem-workspace",
     "apps": [
       {
         "name": "Admin Console",
@@ -76,6 +76,32 @@ curl "$OPENGUARDIANS_API_URL/api/workspace/apps?workspaceId=gem-workspace"
 curl "$OPENGUARDIANS_API_URL/api/workspace/apps?workspaceId=gem-workspace&mode=production"
 curl "$OPENGUARDIANS_API_URL/api/workspace/apps?workspaceId=gem-workspace&mode=marketing"
 curl "$OPENGUARDIANS_API_URL/api/workspace/apps?workspaceId=gem-workspace&mode=automation"
+```
+
+## Update app lifecycle or metadata
+
+Disable an app without deleting it:
+
+```bash
+curl -X PATCH "$OPENGUARDIANS_API_URL/api/workspace/apps/gem-workspace:production:admin-console" \
+  -H "Content-Type: application/json" \
+  -H "x-workspace-id: gem-workspace" \
+  -d '{
+    "status": "disabled"
+  }'
+```
+
+Reactivate and update metadata:
+
+```bash
+curl -X PATCH "$OPENGUARDIANS_API_URL/api/workspace/apps/gem-workspace:production:admin-console" \
+  -H "Content-Type: application/json" \
+  -H "x-workspace-id: gem-workspace" \
+  -d '{
+    "status": "active",
+    "url": "https://admin.example.com",
+    "healthPath": "/api/health"
+  }'
 ```
 
 ## Launch an app
