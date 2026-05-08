@@ -8,6 +8,16 @@ function resolveWorkspaceId(req: Request) {
   return headerWorkspaceId || queryWorkspaceId || bodyWorkspaceId || process.env.DEFAULT_WORKSPACE_ID;
 }
 
+function actorCanAccessWorkspace(req: Request, workspaceId: string) {
+  const workspaces = req.actor?.workspaces;
+
+  if (!workspaces?.length) {
+    return false;
+  }
+
+  return workspaces.includes('*') || workspaces.includes(workspaceId);
+}
+
 export function requireWorkspaceContext(req: Request, res: Response, next: NextFunction) {
   if (req.path === '/api/health') {
     return next();
@@ -20,6 +30,14 @@ export function requireWorkspaceContext(req: Request, res: Response, next: NextF
       ok: false,
       error: 'WORKSPACE_ID_REQUIRED',
       message: 'Provide x-workspace-id, workspaceId query parameter, workspaceId body field, or DEFAULT_WORKSPACE_ID.'
+    });
+  }
+
+  if (!actorCanAccessWorkspace(req, workspaceId)) {
+    return res.status(403).json({
+      ok: false,
+      error: 'WORKSPACE_ACCESS_DENIED',
+      workspaceId
     });
   }
 
