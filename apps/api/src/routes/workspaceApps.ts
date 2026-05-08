@@ -1,6 +1,7 @@
 import { Router, type Request } from 'express';
 import { z } from 'zod';
 
+import { requireScope } from '../middleware/accessControl.js';
 import {
   getWorkspaceApp,
   listWorkspaceApps,
@@ -50,7 +51,7 @@ function buildHealthUrl(app: { url: string; healthPath: string | null }) {
   return new URL(app.healthPath ?? '/', app.url).toString();
 }
 
-workspaceAppsRouter.get('/', async (req, res, next) => {
+workspaceAppsRouter.get('/', requireScope('apps:read'), async (req, res, next) => {
   try {
     const workspaceId = requireRouteWorkspaceId(req);
     const modeResult = req.query.mode ? modeSchema.safeParse(req.query.mode) : undefined;
@@ -77,7 +78,7 @@ workspaceAppsRouter.get('/', async (req, res, next) => {
   }
 });
 
-workspaceAppsRouter.post('/', async (req, res, next) => {
+workspaceAppsRouter.post('/', requireScope('apps:write'), async (req, res, next) => {
   try {
     const workspaceId = requireRouteWorkspaceId(req);
     const parsed = registerAppSchema.safeParse(req.body);
@@ -111,7 +112,7 @@ workspaceAppsRouter.post('/', async (req, res, next) => {
   }
 });
 
-workspaceAppsRouter.post('/bulk', async (req, res, next) => {
+workspaceAppsRouter.post('/bulk', requireScope('apps:write'), async (req, res, next) => {
   try {
     const workspaceId = requireRouteWorkspaceId(req);
     const parsed = bulkImportSchema.safeParse(req.body);
@@ -151,7 +152,7 @@ workspaceAppsRouter.post('/bulk', async (req, res, next) => {
   }
 });
 
-workspaceAppsRouter.get('/:appId', async (req, res, next) => {
+workspaceAppsRouter.get('/:appId', requireScope('apps:read'), async (req, res, next) => {
   try {
     const workspaceId = requireRouteWorkspaceId(req);
     const app = await getWorkspaceApp(workspaceId, req.params.appId);
@@ -172,7 +173,7 @@ workspaceAppsRouter.get('/:appId', async (req, res, next) => {
   }
 });
 
-workspaceAppsRouter.get('/:appId/launch', async (req, res, next) => {
+workspaceAppsRouter.get('/:appId/launch', requireScope('apps:launch'), async (req, res, next) => {
   try {
     const workspaceId = requireRouteWorkspaceId(req);
     const redirect = req.query.redirect !== 'false';
@@ -207,7 +208,7 @@ workspaceAppsRouter.get('/:appId/launch', async (req, res, next) => {
   }
 });
 
-workspaceAppsRouter.get('/:appId/health', async (req, res, next) => {
+workspaceAppsRouter.get('/:appId/health', requireScope('apps:health'), async (req, res, next) => {
   try {
     const workspaceId = requireRouteWorkspaceId(req);
     const app = await getWorkspaceApp(workspaceId, req.params.appId);
