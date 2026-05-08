@@ -13,9 +13,10 @@
   },
   "scripts": {
     "build": "prisma generate --schema prisma/schema.prisma && tsc -p tsconfig.json",
-    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "typecheck": "prisma generate --schema prisma/schema.prisma && tsc -p tsconfig.json --noEmit",
     "db:generate": "prisma generate --schema prisma/schema.prisma",
     "db:migrate": "prisma migrate dev --schema prisma/schema.prisma",
+    "db:deploy": "prisma migrate deploy --schema prisma/schema.prisma",
     "lint": "echo \"lint not configured for @openguardians/db\"",
     "test": "echo \"tests not configured for @openguardians/db\""
   },
