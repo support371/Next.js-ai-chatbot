@@ -1,0 +1,46 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum WorkspaceAppMode {
+  production
+  marketing
+  automation
+}
+
+enum WorkspaceAppSource {
+  vercel
+  external
+}
+
+enum WorkspaceAppStatus {
+  active
+  draft
+  disabled
+}
+
+model WorkspaceApp {
+  id                  String             @id
+  workspaceId         String
+  name                String
+  mode                WorkspaceAppMode
+  source              WorkspaceAppSource @default(vercel)
+  url                 String
+  vercelProjectId     String?
+  vercelDeploymentUrl String?
+  healthPath          String?
+  description         String?
+  status              WorkspaceAppStatus @default(active)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+
+  @@unique([workspaceId, mode, name])
+  @@index([workspaceId])
+  @@index([workspaceId, mode])
+  @@index([status])
+}
