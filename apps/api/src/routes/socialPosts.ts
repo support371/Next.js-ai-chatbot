@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
+import { requireScope } from '../middleware/accessControl.js';
+
 export const socialPostsRouter = Router();
 
 const socialPostDraftSchema = z.object({
@@ -9,7 +11,7 @@ const socialPostDraftSchema = z.object({
   approved: z.boolean().default(false)
 });
 
-socialPostsRouter.get('/', (_req, res) => {
+socialPostsRouter.get('/', requireScope('social:read'), (_req, res) => {
   res.status(200).json({
     ok: true,
     posts: [],
@@ -17,7 +19,7 @@ socialPostsRouter.get('/', (_req, res) => {
   });
 });
 
-socialPostsRouter.post('/draft', (req, res) => {
+socialPostsRouter.post('/draft', requireScope('social:write'), (req, res) => {
   const parsed = socialPostDraftSchema.safeParse(req.body);
 
   if (!parsed.success) {
